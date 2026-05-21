@@ -1,10 +1,10 @@
 # GPO-PolicySync
 
-A PowerShell script that syncs registry-based policy values back into local Group Policy (`registry.pol`) files.
+A PowerShell script that syncs registry-based policy values back into the local Group Policy store (`registry.pol` files).
 
-## The Problem
+## Why
 
-A lot of Windows hardening and privacy tools (privacy.sexy, Chris Titus WinUtil, SophiaScript, etc.) write policy settings directly to the registry under `HKLM\SOFTWARE\Policies` or `HKCU\SOFTWARE\Policies`. This works... until it doesn't:
+A lot of Windows hardening and privacy tools (privacy.sexy, Chris Titus WinUtil, etc.) write policy settings directly to the registry under `HKLM\SOFTWARE\Policies` or `HKCU\SOFTWARE\Policies`. This works... until it doesn't:
 
 - Those settings **don't show up in `gpedit.msc`**, so you can't see what's actually configured
 - Running `gpupdate` **overwrites them**, because the Group Policy engine applies whatever's in `registry.pol`, not the live registry
@@ -13,9 +13,9 @@ A lot of Windows hardening and privacy tools (privacy.sexy, Chris Titus WinUtil,
 
 The root cause is that Windows Group Policy is a one-way street: `registry.pol` -> registry. There's no built-in way to go the other direction.
 
-## What This Script Does
+## How
 
-`Sync-PolicyToRegistryPol.ps1` reads the live registry under `SOFTWARE\Policies` and merges those values back into the corresponding `registry.pol` file. It does a proper diff/merge, not a blind overwrite:
+`Sync-PolicyToRegistryPol.ps1` reads the live registry under `SOFTWARE\Policies` and merges those values back into the local Machine and User policy stores (`System32\GroupPolicy\Machine\registry.pol` and `User\registry.pol`). It does a proper diff/merge, not a blind overwrite:
 
 - **Adds** entries that exist in the registry but not in `registry.pol`
 - **Updates** entries where the registry value has changed
@@ -24,7 +24,7 @@ The root cause is that Windows Group Policy is a one-way street: `registry.pol` 
 - **Preserves** non-policy entries (anything outside `SOFTWARE\Policies`)
 - Bumps the `gpt.ini` version number so the Group Policy engine recognizes the change
 
-After syncing, your policy settings are visible in `gpedit.msc`, survive `gpupdate`, and can be exported with `LGPO.exe /b` for backup or deployment to other machines.
+After syncing, your policy settings are visible in the Group Policy Editor, survive `gpupdate`, and can be exported with `LGPO.exe /b` for backup or deployment to other machines.
 
 ## Usage
 
@@ -64,7 +64,7 @@ If you don't pass `-Machine` or `-User`, the script defaults to both plus `-Refr
 The script shows color-coded output for each scope:
 
 - **Green** (+) = new entries being added to `registry.pol`
-- **Yellow** (~) = entries being updated
+- **Blue** (~) = entries being updated
 - **Red** (-) = stale entries being removed
 - **Gray** (*) = preserved special directives
 - **Gray** = count of unchanged entries
@@ -78,7 +78,7 @@ This fills a specific gap in the Windows policy toolchain:
 ```
 ┌─────────────────────────────────────────────┐
 │  1. Hardening tool writes to registry       │
-│     (privacy.sexy, WinUtil, SophiaScript)   │
+│     (privacy.sexy, WinUtil, etc.)           │
 │                                             │
 │  2. Sync-PolicyToRegistryPol.ps1            │  <-- this script
 │     merges registry -> registry.pol         │
@@ -87,7 +87,7 @@ This fills a specific gap in the Windows policy toolchain:
 │     gpupdate no longer wipes your settings  │
 │                                             │
 │  4. LGPO.exe /b can back up the full GPO    │
-│     LGPO.exe /m can restore it anywhere     │
+│     LGPO.exe /g can restore it anywhere     │
 └─────────────────────────────────────────────┘
 ```
 
@@ -96,6 +96,14 @@ Without step 2, the settings from step 1 are invisible to everything that reads 
 ## Technical Details
 
 The script works directly with the [MS-GPREG binary format](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-gpreg/) (the PReg format used by `registry.pol` files). It doesn't depend on any external modules or tools.
+
+The merge treats the live registry as the source of truth for policy entries under `SOFTWARE\Policies`:
+
+1. **Non-policy entries** in the existing `.pol` file (anything outside `SOFTWARE\Policies`) are kept as-is
+2. **Special GP directives** (`**DeleteValues`, `**Del.*`, etc.) are always preserved
+3. **Policy entries that exist in the registry but not in `.pol`** are added
+4. **Policy entries that exist in both** but differ in type or data are overwritten with the registry value
+5. **Policy entries that exist in `.pol` but not in the registry** are removed (stale entries from policies that were unconfigured or deleted)
 
 Supported registry value types: `REG_SZ`, `REG_EXPAND_SZ`, `REG_BINARY`, `REG_DWORD`, `REG_MULTI_SZ`, `REG_QWORD`.
 

@@ -753,9 +753,9 @@ function Process-Scope {
     }
 
     if ($updated.Count -gt 0) {
-        Write-Host "`n  Updated ($($updated.Count)):" -ForegroundColor Yellow
+        Write-Host "`n  Updated ($($updated.Count)):" -ForegroundColor Cyan
         foreach ($c in $updated) {
-            Write-Host "    ~ $($c.KeyPath)\$($c.ValueName)  [$($c.Detail)]" -ForegroundColor Yellow
+            Write-Host "    ~ $($c.KeyPath)\$($c.ValueName)  [$($c.Detail)]" -ForegroundColor Cyan
         }
     }
 
@@ -800,6 +800,12 @@ function Process-Scope {
 $principal = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     throw "This script requires elevation. Run from an Administrator PowerShell session."
+}
+
+# Windows Home lacks the Registry CSE that applies registry.pol — files would be written but never processed
+$editionId = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion').EditionID
+if ($editionId -eq 'Core') {
+    throw "Windows Home edition detected (EditionID: Core). The Group Policy engine on Home does not process registry.pol files. This script requires Windows Pro, Enterprise, Education, or Server."
 }
 
 # -DryRun activates ShouldProcess ($WhatIfPreference) so existing -WhatIf guards also fire
