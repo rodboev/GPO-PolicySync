@@ -1,4 +1,4 @@
-# Sync-PolicyToRegistryPol.ps1
+# Sync-RegistryToGroupPolicy.ps1
 # Syncs current HKLM/HKCU SOFTWARE\Policies registry values back into local registry.pol,
 # while preserving existing special registry.pol directives (**DeleteValues, **Del.<name>, etc.).
 # Scope:
@@ -12,7 +12,7 @@
 #   - HKLM/HKCU roots are NOT written into registry.pol keys.
 #
 # Example:
-#   .\Sync-PolicyToRegistryPol.ps1 -Machine -User -Backup -RefreshPolicy
+#   .\Sync-RegistryToGroupPolicy.ps1 -Machine -User -Backup -RefreshPolicy
 #
 # Default:
 #   If neither -Machine nor -User is specified, -Machine -User -RefreshPolicy is assumed.

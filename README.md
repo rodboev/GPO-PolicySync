@@ -15,7 +15,7 @@ The root cause is that Windows Group Policy is a one-way street: `registry.pol` 
 
 ## How
 
-`Sync-PolicyToRegistryPol.ps1` reads the live registry under `SOFTWARE\Policies` and merges those values back into the local Machine and User policy stores (`System32\GroupPolicy\Machine\registry.pol` and `User\registry.pol`). It does a proper diff/merge, not a blind overwrite:
+`Sync-RegistryToGroupPolicy.ps1` reads the live registry under `SOFTWARE\Policies` and merges those values back into the local Machine and User policy stores (`System32\GroupPolicy\Machine\registry.pol` and `User\registry.pol`). It does a proper diff/merge, not a blind overwrite:
 
 - **Adds** entries that exist in the registry but not in `registry.pol`
 - **Updates** entries where the registry value has changed
@@ -32,19 +32,19 @@ Run from an elevated (Administrator) PowerShell prompt:
 
 ```powershell
 # Sync both Machine and User policies, then refresh Group Policy (default)
-.\Sync-PolicyToRegistryPol.ps1
+.\Sync-RegistryToGroupPolicy.ps1
 
 # Machine policies only
-.\Sync-PolicyToRegistryPol.ps1 -Machine
+.\Sync-RegistryToGroupPolicy.ps1 -Machine
 
 # User policies only
-.\Sync-PolicyToRegistryPol.ps1 -User
+.\Sync-RegistryToGroupPolicy.ps1 -User
 
 # Preview what would change without writing anything
-.\Sync-PolicyToRegistryPol.ps1 -DryRun
+.\Sync-RegistryToGroupPolicy.ps1 -DryRun
 
 # Skip the automatic gpupdate at the end
-.\Sync-PolicyToRegistryPol.ps1 -Machine -User
+.\Sync-RegistryToGroupPolicy.ps1 -Machine -User
 ```
 
 ### Parameters
@@ -80,7 +80,7 @@ This fills a specific gap in the Windows policy toolchain:
 │  1. Hardening tool writes to registry       │
 │     (privacy.sexy, WinUtil, etc.)           │
 │                                             │
-│  2. Sync-PolicyToRegistryPol.ps1            │  <-- this script
+│  2. Sync-RegistryToGroupPolicy.ps1          │  <-- this script
 │     merges registry -> registry.pol         │
 │                                             │
 │  3. gpedit.msc now shows everything         │
