@@ -724,7 +724,7 @@ function Process-Scope {
 
     $polPath = Get-PolFilePath -Scope $Scope
 
-    if ($Backup -and -not $DryRun) {
+    if ($Backup -and -not $WhatIfPreference) {
         $backupPath = Backup-FileIfPresent -Path $polPath
         if ($backupPath) {
             Write-Verbose "Backed up $polPath -> $backupPath"
@@ -777,7 +777,7 @@ function Process-Scope {
         Write-Host "`n  Unchanged: $($unchanged.Count)" -ForegroundColor DarkGray
     }
 
-    if ($DryRun) {
+    if ($WhatIfPreference) {
         Write-Host "`n  [DRY RUN] No changes written." -ForegroundColor Magenta
     } elseif ($PSCmdlet.ShouldProcess($polPath, "Write $($mergedEntries.Count) registry.pol entries for scope $Scope")) {
         Write-RegistryPol -Path $polPath -Entries $mergedEntries
@@ -808,7 +808,7 @@ if ($editionId -eq 'Core') {
     throw "Windows Home edition detected (EditionID: Core). The Group Policy engine on Home does not process registry.pol files. This script requires Windows Pro, Enterprise, Education, or Server."
 }
 
-# -DryRun activates ShouldProcess ($WhatIfPreference) so existing -WhatIf guards also fire
+# -DryRun activates $WhatIfPreference so all guards work with either -DryRun or -WhatIf
 if ($DryRun) {
     $WhatIfPreference = $true
 }
@@ -824,7 +824,7 @@ $scopes = New-Object System.Collections.Generic.List[string]
 if ($Machine) { $scopes.Add('Machine') }
 if ($User)    { $scopes.Add('User') }
 
-if ($Backup -and -not $DryRun) {
+if ($Backup -and -not $WhatIfPreference) {
     $gptIniPath = Get-GptIniPath
     $gptBackup = Backup-FileIfPresent -Path $gptIniPath
     if ($gptBackup) {
@@ -836,20 +836,20 @@ $results = foreach ($scope in $scopes) {
     Process-Scope -Scope $scope
 }
 
-if (-not $DryRun -and $PSCmdlet.ShouldProcess((Get-GptIniPath), "Increment gpt.ini version for scopes: $($scopes -join ', ')")) {
+if (-not $WhatIfPreference -and $PSCmdlet.ShouldProcess((Get-GptIniPath), "Increment gpt.ini version for scopes: $($scopes -join ', ')")) {
     Update-GptIniVersion -Scopes $scopes.ToArray()
-} elseif ($DryRun) {
+} elseif ($WhatIfPreference) {
     Write-Host "`n[DRY RUN] Would increment gpt.ini version for scopes: $($scopes -join ', ')" -ForegroundColor Magenta
 }
 
-if ($RefreshPolicy -and -not $DryRun) {
+if ($RefreshPolicy -and -not $WhatIfPreference) {
     if ($Machine) {
         & gpupdate.exe /target:computer /force | Out-Host
     }
     if ($User) {
         & gpupdate.exe /target:user /force | Out-Host
     }
-} elseif ($RefreshPolicy -and $DryRun) {
+} elseif ($RefreshPolicy -and $WhatIfPreference) {
     Write-Host "`n[DRY RUN] Would run gpupdate.exe for scopes: $($scopes -join ', ')" -ForegroundColor Magenta
 }
 
